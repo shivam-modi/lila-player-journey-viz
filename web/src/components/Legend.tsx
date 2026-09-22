@@ -1,3 +1,4 @@
+import { EVENT_CATEGORIES } from '../lib/eventCategories'
 import './Legend.css'
 
 export function Legend() {
@@ -5,10 +6,9 @@ export function Legend() {
     <div className="legend">
       <div><span className="dot human" /> Human</div>
       <div><span className="dot bot" /> Bot</div>
-      <div><span className="marker kill" /> Kill</div>
-      <div><span className="marker death" /> Death</div>
-      <div><span className="marker storm" /> Storm death</div>
-      <div><span className="marker loot" /> Loot</div>
+      {EVENT_CATEGORIES.map(({ kind, label, color }) => (
+        <div key={kind}><span className="marker" style={{ backgroundColor: color }} /> {label}</div>
+      ))}
     </div>
   )
 }

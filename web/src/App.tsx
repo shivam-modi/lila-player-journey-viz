@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useReducer } from 'react'
 import { FilterPanel } from './components/FilterPanel'
 import { MapCanvas } from './components/MapCanvas'
 import { Timeline } from './components/Timeline'
@@ -7,65 +7,27 @@ import { useMatchesIndex } from './hooks/useMatchesIndex'
 import { useMatchBundle } from './hooks/useMatchBundle'
 import { useHeatmap } from './hooks/useHeatmap'
 import { useOverviewEvents } from './hooks/useOverviewEvents'
+import { usePlaybackClock } from './hooks/usePlaybackClock'
 import { eventsToDrawPoints, EVENT_TO_KIND } from './lib/drawCommands'
-import type { DrawPointKind } from './lib/drawCommands'
 import { computePlaybackFrame } from './lib/playback'
-import type { HeatmapCategory, MapId } from './lib/types'
+import { viewStateReducer, initialViewState } from './lib/viewStateReducer'
 import './App.css'
 
-const ALL_EVENT_CATEGORIES: DrawPointKind[] = ['kill', 'death', 'storm', 'loot']
-
 export default function App() {
-  const { data: index, loading: indexLoading } = useMatchesIndex()
-  const [mapId, setMapId] = useState<MapId>('AmbroseValley')
-  const [date, setDate] = useState<string | null>(null)
-  const [matchId, setMatchId] = useState<string | null>(null)
-  const [entityFilter, setEntityFilter] = useState<'all' | 'humans' | 'bots'>('all')
-  const [eventCategoryFilter, setEventCategoryFilter] = useState<Set<DrawPointKind>>(new Set(ALL_EVENT_CATEGORIES))
-  const [heatmapCategory, setHeatmapCategory] = useState<HeatmapCategory | 'off'>('kills')
+  const { data: index, loading: indexLoading, error: indexError } = useMatchesIndex()
+  const [view, dispatch] = useReducer(viewStateReducer, initialViewState)
+  const { mapId, date, matchId, entityFilter, eventCategoryFilter, heatmapCategory } = view
 
-  const { data: heatmap } = useHeatmap(matchId ? null : mapId)
-  const { data: matchEvents } = useMatchBundle(matchId)
-  const { data: overviewEvents } = useOverviewEvents(mapId)
-
-  const [currentTs, setCurrentTs] = useState(0)
-  const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(1)
-  const rafRef = useRef<number | null>(null)
-  const lastFrameTimeRef = useRef<number | null>(null)
+  const { data: heatmap, error: heatmapError } = useHeatmap(matchId ? null : mapId)
+  const { data: matchEvents, error: matchEventsError } = useMatchBundle(matchId)
+  const { data: overviewEvents, error: overviewError } = useOverviewEvents(mapId)
 
   const durationMs = useMemo(() => {
     if (!matchId || !index) return 0
     return index.find((m) => m.match_id === matchId)?.duration_ms ?? 0
   }, [matchId, index])
 
-  useEffect(() => {
-    setCurrentTs(0)
-    setPlaying(false)
-  }, [matchId])
-
-  useEffect(() => {
-    if (!playing) {
-      lastFrameTimeRef.current = null
-      return
-    }
-    const tick = (now: number) => {
-      if (lastFrameTimeRef.current != null) {
-        const delta = (now - lastFrameTimeRef.current) * speed
-        setCurrentTs((t) => Math.min(durationMs, t + delta))
-      }
-      lastFrameTimeRef.current = now
-      rafRef.current = requestAnimationFrame(tick)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    }
-  }, [playing, speed, durationMs])
-
-  useEffect(() => {
-    if (currentTs >= durationMs && durationMs > 0) setPlaying(false)
-  }, [currentTs, durationMs])
+  const { currentTs, playing, speed, setCurrentTs, setPlaying, setSpeed } = usePlaybackClock(durationMs, matchId)
 
   const overviewPoints = useMemo(() => {
     if (matchId || !overviewEvents) return []
@@ -90,9 +52,19 @@ export default function App() {
     return computePlaybackFrame(scoped, mapId, currentTs)
   }, [matchId, matchEvents, mapId, currentTs, entityFilter, eventCategoryFilter])
 
-  if (indexLoading || !index) {
+  if (indexLoading) {
     return <div className="app-loading">Loading match data…</div>
   }
+
+  if (indexError || !index) {
+    return (
+      <div className="app-loading">
+        Failed to load match data{indexError ? `: ${indexError.message}` : ''}. Try reloading the page.
+      </div>
+    )
+  }
+
+  const nonFatalError = matchEventsError ?? heatmapError ?? overviewError
 
   return (
     <div className="app">
@@ -104,19 +76,18 @@ export default function App() {
         entityFilter={entityFilter}
         eventCategoryFilter={eventCategoryFilter}
         heatmapCategory={heatmapCategory}
-        onMapChange={(m) => { setMapId(m); setDate(null); setMatchId(null) }}
-        onDateChange={(d) => { setDate(d); setMatchId(null) }}
-        onMatchChange={setMatchId}
-        onEntityFilterChange={setEntityFilter}
-        onEventCategoryToggle={(k) => setEventCategoryFilter((prev) => {
-          const next = new Set(prev)
-          if (next.has(k)) next.delete(k); else next.add(k)
-          return next
-        })}
-        onHeatmapCategoryChange={setHeatmapCategory}
+        onMapChange={(m) => dispatch({ type: 'SET_MAP', mapId: m })}
+        onDateChange={(d) => dispatch({ type: 'SET_DATE', date: d })}
+        onMatchChange={(m) => dispatch({ type: 'SET_MATCH', matchId: m })}
+        onEntityFilterChange={(f) => dispatch({ type: 'SET_ENTITY_FILTER', filter: f })}
+        onEventCategoryToggle={(k) => dispatch({ type: 'TOGGLE_EVENT_CATEGORY', kind: k })}
+        onHeatmapCategoryChange={(c) => dispatch({ type: 'SET_HEATMAP_CATEGORY', category: c })}
       />
       <main className="app-main">
         <Legend />
+        {nonFatalError && (
+          <div className="app-error-banner">Failed to load some data: {nonFatalError.message}</div>
+        )}
         <div className="app-canvas-area">
           <MapCanvas
             mapId={mapId}

@@ -28,4 +28,14 @@
   color: #cfd3da;
   background: #0e0f12;
   font-family: system-ui, sans-serif;
+  text-align: center;
+  padding: 24px;
+}
+
+.app-error-banner {
+  padding: 8px 16px;
+  background: #4a1f1f;
+  color: #ffb3b3;
+  font-size: 13px;
+  border-bottom: 1px solid #6b2b2b;
 }

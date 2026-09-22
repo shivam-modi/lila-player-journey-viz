@@ -1,20 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { MAP_CONFIGS, MINIMAP_SIZE } from '../lib/mapConfig'
-import type { HeatmapCategory, HeatmapGrids, MapId } from '../lib/types'
-import type { DrawPoint } from '../lib/drawCommands'
+import { MARKER_COLORS } from '../lib/eventCategories'
+import type { DrawPoint, HeatmapCategory, HeatmapGrids, MapId, PlaybackFrame } from '../lib/types'
 import './MapCanvas.css'
-
-const MARKER_COLORS: Record<DrawPoint['kind'], string> = {
-  kill: '#ff4d4d',
-  death: '#ffffff',
-  storm: '#b060ff',
-  loot: '#4dff88',
-}
-
-export interface PlaybackFrame {
-  positions: { x: number; y: number; isBot: boolean; trail: { x: number; y: number }[] }[]
-  events: DrawPoint[]
-}
 
 interface MapCanvasProps {
   mapId: MapId

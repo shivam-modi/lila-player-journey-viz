@@ -1,15 +1,9 @@
-import type { HeatmapCategory, MapId, MatchIndexEntry } from '../lib/types'
-import type { DrawPointKind } from '../lib/drawCommands'
+import type { DrawPointKind, HeatmapCategory, MapId, MatchIndexEntry } from '../lib/types'
 import { filterMatches, uniqueDates } from '../lib/filterMatches'
+import { EVENT_CATEGORIES } from '../lib/eventCategories'
 import './FilterPanel.css'
 
 const MAPS: MapId[] = ['AmbroseValley', 'GrandRift', 'Lockdown']
-const EVENT_CATEGORIES: { kind: DrawPointKind; label: string }[] = [
-  { kind: 'kill', label: 'Kill' },
-  { kind: 'death', label: 'Death' },
-  { kind: 'storm', label: 'Storm death' },
-  { kind: 'loot', label: 'Loot' },
-]
 const HEATMAP_CATEGORIES: (HeatmapCategory | 'off')[] = ['off', 'kills', 'deaths', 'storm_deaths', 'loot', 'traffic']
 
 interface FilterPanelProps {

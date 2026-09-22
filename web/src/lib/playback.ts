@@ -1,7 +1,6 @@
 import { worldToPixel } from './coords'
 import { eventsToDrawPoints } from './drawCommands'
-import type { PlaybackFrame } from '../components/MapCanvas'
-import type { MapId, MatchEvent } from './types'
+import type { MapId, MatchEvent, PlaybackFrame } from './types'
 
 const POSITION_EVENTS = new Set(['Position', 'BotPosition'])
 

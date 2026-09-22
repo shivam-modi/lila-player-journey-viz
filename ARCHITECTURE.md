@@ -39,6 +39,54 @@ playback), plus precomputed per-map heatmap grids and per-map "overview
 event" scatter data (all discrete events, for browsing without opening a
 match).
 
+## Frontend architecture
+
+`web/src` is layered so each piece has one job and a clear direction of
+dependency (`components` → `hooks` → `lib`, never the reverse):
+
+- **`lib/`** — pure functions and shared types, fully unit-tested, no
+  React or DOM dependency: coordinate math (`coords.ts`), data fetching
+  (`dataClient.ts`), filtering (`filterMatches.ts`), event→marker mapping
+  (`drawCommands.ts`), playback-frame computation (`playback.ts`), and the
+  view-state reducer (`viewStateReducer.ts`).
+- **`hooks/`** — thin React wrappers around `lib/dataClient.ts` (one hook
+  per endpoint: `useMatchesIndex`, `useMatchBundle`, `useHeatmap`,
+  `useOverviewEvents`) plus `usePlaybackClock`, which owns the
+  requestAnimationFrame loop driving match playback.
+- **`components/`** — presentation only: `FilterPanel`, `MapCanvas`,
+  `Timeline`, `Legend`. None of them hold app-level state; they receive
+  data and callbacks as props.
+
+**State management:** all filter/selection state (map, date, match,
+entity filter, event-category filter, heatmap category) lives in one
+`useReducer` (`viewStateReducer.ts`) instead of scattered `useState`
+calls. This matters here specifically because the fields aren't
+independent — picking a new map invalidates the date and match
+selection, and picking a new date invalidates the match selection. That
+cascade is easy to get wrong (or forget) if it's re-implemented in every
+`onChange` handler; centralizing it in one pure, unit-tested reducer
+function makes the cascade a fact about the state machine, verified by 8
+tests, rather than an implicit convention scattered across JSX. Playback
+timing (`currentTs`/`playing`/`speed`, driven by `requestAnimationFrame`)
+is deliberately kept out of that reducer and lives in its own hook
+(`usePlaybackClock`) — it's a side-effect-driven animation clock, a
+different kind of state than the pure, synchronous filter selections.
+
+**Extensibility example:** the four event marker types (kill/death/storm
+death/loot) are defined once, in `lib/eventCategories.ts`, as
+`{kind, label, color}`. `FilterPanel` (checkboxes), `MapCanvas` (marker
+fill colors), and `Legend` (swatches) all read from that one list.
+Before this consolidation, adding or restyling a category meant editing
+three separate hardcoded lists that could silently drift out of sync;
+now it's a one-line change in one file.
+
+**Error handling:** every data-fetching hook exposes `{data, loading,
+error}`. A failure loading the match index (required for the app to
+function at all) replaces the whole page with an error message; a
+failure loading a single match's events, a heatmap, or overview events
+(non-fatal — the rest of the UI still works) surfaces as a dismissable
+banner rather than failing silently.
+
 ## Coordinate mapping
 
 This is the detail the assignment calls out as the trickiest part, so

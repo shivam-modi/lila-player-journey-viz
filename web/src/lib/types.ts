@@ -43,3 +43,17 @@ export interface OverviewEvent {
 export type HeatmapCategory = 'kills' | 'deaths' | 'storm_deaths' | 'loot' | 'traffic'
 
 export type HeatmapGrids = Record<HeatmapCategory, number[][]>
+
+export type DrawPointKind = 'kill' | 'death' | 'storm' | 'loot'
+
+export interface DrawPoint {
+  x: number
+  y: number
+  kind: DrawPointKind
+  isBot: boolean
+}
+
+export interface PlaybackFrame {
+  positions: { x: number; y: number; isBot: boolean; trail: { x: number; y: number }[] }[]
+  events: DrawPoint[]
+}

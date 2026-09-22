@@ -1,14 +1,5 @@
 import { worldToPixel } from './coords'
-import type { EventType, MapId } from './types'
-
-export type DrawPointKind = 'kill' | 'death' | 'storm' | 'loot'
-
-export interface DrawPoint {
-  x: number
-  y: number
-  kind: DrawPointKind
-  isBot: boolean
-}
+import type { DrawPoint, DrawPointKind, EventType, MapId } from './types'
 
 export const EVENT_TO_KIND: Partial<Record<EventType, DrawPointKind>> = {
   Kill: 'kill',
