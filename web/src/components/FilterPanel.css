@@ -1,0 +1,37 @@
+.filter-panel {
+  width: 260px;
+  flex-shrink: 0;
+  background: #1a1d23;
+  color: #e6e6e6;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-size: 13px;
+}
+
+.filter-panel h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8a8f98;
+}
+
+.filter-panel select {
+  width: 100%;
+  padding: 6px 8px;
+  background: #2a2e37;
+  color: #e6e6e6;
+  border: 1px solid #3a3f4a;
+  border-radius: 4px;
+}
+
+.filter-panel label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  cursor: pointer;
+}
