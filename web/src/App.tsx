@@ -34,7 +34,10 @@ export default function App() {
     let scoped = overviewEvents.filter((e) => (date ? e.date === date : true))
     if (entityFilter === 'humans') scoped = scoped.filter((e) => !e.is_bot)
     if (entityFilter === 'bots') scoped = scoped.filter((e) => e.is_bot)
-    scoped = scoped.filter((e) => eventCategoryFilter.has(EVENT_TO_KIND[e.event]!))
+    scoped = scoped.filter((e) => {
+      const kind = EVENT_TO_KIND[e.event]
+      return kind !== undefined && eventCategoryFilter.has(kind)
+    })
     return eventsToDrawPoints(scoped, mapId)
   }, [matchId, overviewEvents, date, entityFilter, eventCategoryFilter, mapId])
 

@@ -34,6 +34,7 @@ def read_events(path: Path) -> pd.DataFrame:
 def load_all_events(root: Path) -> pd.DataFrame:
     root = Path(root)
     frames = []
+    skipped: list[str] = []
     for day_folder, date in DAY_FOLDER_TO_DATE.items():
         day_dir = root / day_folder
         if not day_dir.is_dir():
@@ -41,10 +42,19 @@ def load_all_events(root: Path) -> pd.DataFrame:
         for file_path in day_dir.glob("*.nakama-0"):
             try:
                 df = read_events(file_path)
-            except Exception:
+            except Exception as e:
+                skipped.append(f"{file_path.name}: {e}")
                 continue
             df["date"] = date
             frames.append(df)
+
+    if skipped:
+        print(f"WARNING: skipped {len(skipped)} unreadable file(s):")
+        for s in skipped[:20]:
+            print(f"  - {s}")
+        if len(skipped) > 20:
+            print(f"  ... and {len(skipped) - 20} more")
+
     if not frames:
         return pd.DataFrame(
             columns=["user_id", "match_id", "map_id", "x", "z", "ts_ms", "event", "is_bot", "date"]

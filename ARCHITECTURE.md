@@ -122,6 +122,21 @@ confirming that event clusters on GrandRift's minimap fell inside that
 map's own labeled zones (e.g. "Engineer's Quarters", "Labour Quarters") —
 not just that the math checked out in isolation.
 
+**A real bug this caught, and what it says about testing coordinate math:**
+`scripts/lib/heatmap.py`'s bin-row formula was originally `row = int(v * bins)`
+— missing the same Y-flip `coords.ts` applies for every point marker. The
+heatmap and the discrete-event dots were being drawn on inverted Y-axes: a
+kill hot-zone would render on the *opposite* vertical half of the map from
+the actual kill markers on top of it. The original heatmap test only
+checked the degenerate origin point `(u=0, v=0)`, which can't distinguish a
+flipped axis from an unflipped one — both put it at row 0. An independent
+review caught it; `scripts/tests/test_heatmap.py` now asserts against the
+same non-symmetric worked example the README provides (row 86, not row
+13), and `scripts/tests/test_map_config_consistency.py` cross-checks that
+the Python and TypeScript map configs haven't drifted apart — closing the
+actual gap that let this slip through (each side was only ever tested
+against itself).
+
 ## Assumptions
 
 - **Heatmaps aggregate across all 5 days per map and are not

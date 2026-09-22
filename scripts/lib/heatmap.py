@@ -38,7 +38,9 @@ def build_heatmap_grids(events: pd.DataFrame, bins: int = 100) -> dict[str, dict
             subset = map_events[map_events["event"].isin(event_names)]
             for x, z in zip(subset["x"], subset["z"]):
                 u, v = world_to_uv(x, z, map_id)
+                # Y is flipped, matching the frontend's worldToPixel (image
+                # origin is top-left, same as the source README's formula).
                 col = min(max(int(u * bins), 0), bins - 1)
-                row = min(max(int(v * bins), 0), bins - 1)
+                row = min(max(int((1 - v) * bins), 0), bins - 1)
                 grids[map_id][cat][row][col] += 1
     return grids

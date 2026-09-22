@@ -42,6 +42,19 @@ def test_load_all_events_skips_unreadable_files(tmp_path):
     assert (df["date"] == "2026-02-10").all()
 
 
+def test_load_all_events_reports_skipped_files(tmp_path, capsys):
+    day_dir = tmp_path / "February_10"
+    day_dir.mkdir()
+    (day_dir / "bad_file.nakama-0").write_text("not a parquet file")
+    import shutil
+    shutil.copy(FIXTURES / "human-1_match-a.nakama-0", day_dir / "human-1_match-a.nakama-0")
+
+    load_all_events(tmp_path)
+    output = capsys.readouterr().out
+    assert "skipped 1" in output
+    assert "bad_file.nakama-0" in output
+
+
 def test_day_folder_to_date_mapping():
     assert DAY_FOLDER_TO_DATE["February_10"] == "2026-02-10"
     assert DAY_FOLDER_TO_DATE["February_14"] == "2026-02-14"
