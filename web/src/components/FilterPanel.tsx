@@ -1,9 +1,15 @@
-import type { EventType, HeatmapCategory, MapId, MatchIndexEntry } from '../lib/types'
+import type { HeatmapCategory, MapId, MatchIndexEntry } from '../lib/types'
+import type { DrawPointKind } from '../lib/drawCommands'
 import { filterMatches, uniqueDates } from '../lib/filterMatches'
 import './FilterPanel.css'
 
 const MAPS: MapId[] = ['AmbroseValley', 'GrandRift', 'Lockdown']
-const EVENT_TYPES: EventType[] = ['Kill', 'Killed', 'BotKill', 'BotKilled', 'KilledByStorm', 'Loot']
+const EVENT_CATEGORIES: { kind: DrawPointKind; label: string }[] = [
+  { kind: 'kill', label: 'Kill' },
+  { kind: 'death', label: 'Death' },
+  { kind: 'storm', label: 'Storm death' },
+  { kind: 'loot', label: 'Loot' },
+]
 const HEATMAP_CATEGORIES: (HeatmapCategory | 'off')[] = ['off', 'kills', 'deaths', 'storm_deaths', 'loot', 'traffic']
 
 interface FilterPanelProps {
@@ -12,13 +18,13 @@ interface FilterPanelProps {
   date: string | null
   matchId: string | null
   entityFilter: 'all' | 'humans' | 'bots'
-  eventTypeFilter: Set<EventType>
+  eventCategoryFilter: Set<DrawPointKind>
   heatmapCategory: HeatmapCategory | 'off'
   onMapChange: (m: MapId) => void
   onDateChange: (d: string | null) => void
   onMatchChange: (m: string | null) => void
   onEntityFilterChange: (f: 'all' | 'humans' | 'bots') => void
-  onEventTypeToggle: (e: EventType) => void
+  onEventCategoryToggle: (k: DrawPointKind) => void
   onHeatmapCategoryChange: (c: HeatmapCategory | 'off') => void
 }
 
@@ -71,10 +77,10 @@ export function FilterPanel(props: FilterPanelProps) {
 
       <section>
         <h3>Event types</h3>
-        {EVENT_TYPES.map((e) => (
-          <label key={e}>
-            <input type="checkbox" checked={props.eventTypeFilter.has(e)} onChange={() => props.onEventTypeToggle(e)} />
-            {e}
+        {EVENT_CATEGORIES.map(({ kind, label }) => (
+          <label key={kind}>
+            <input type="checkbox" checked={props.eventCategoryFilter.has(kind)} onChange={() => props.onEventCategoryToggle(kind)} />
+            {label}
           </label>
         ))}
       </section>

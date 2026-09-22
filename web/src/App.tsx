@@ -7,12 +7,13 @@ import { useMatchesIndex } from './hooks/useMatchesIndex'
 import { useMatchBundle } from './hooks/useMatchBundle'
 import { useHeatmap } from './hooks/useHeatmap'
 import { useOverviewEvents } from './hooks/useOverviewEvents'
-import { eventsToDrawPoints } from './lib/drawCommands'
+import { eventsToDrawPoints, EVENT_TO_KIND } from './lib/drawCommands'
+import type { DrawPointKind } from './lib/drawCommands'
 import { computePlaybackFrame } from './lib/playback'
-import type { EventType, HeatmapCategory, MapId } from './lib/types'
+import type { HeatmapCategory, MapId } from './lib/types'
 import './App.css'
 
-const ALL_EVENT_TYPES: EventType[] = ['Kill', 'Killed', 'BotKill', 'BotKilled', 'KilledByStorm', 'Loot']
+const ALL_EVENT_CATEGORIES: DrawPointKind[] = ['kill', 'death', 'storm', 'loot']
 
 export default function App() {
   const { data: index, loading: indexLoading } = useMatchesIndex()
@@ -20,7 +21,7 @@ export default function App() {
   const [date, setDate] = useState<string | null>(null)
   const [matchId, setMatchId] = useState<string | null>(null)
   const [entityFilter, setEntityFilter] = useState<'all' | 'humans' | 'bots'>('all')
-  const [eventTypeFilter, setEventTypeFilter] = useState<Set<EventType>>(new Set(ALL_EVENT_TYPES))
+  const [eventCategoryFilter, setEventCategoryFilter] = useState<Set<DrawPointKind>>(new Set(ALL_EVENT_CATEGORIES))
   const [heatmapCategory, setHeatmapCategory] = useState<HeatmapCategory | 'off'>('kills')
 
   const { data: heatmap } = useHeatmap(matchId ? null : mapId)
@@ -71,9 +72,9 @@ export default function App() {
     let scoped = overviewEvents.filter((e) => (date ? e.date === date : true))
     if (entityFilter === 'humans') scoped = scoped.filter((e) => !e.is_bot)
     if (entityFilter === 'bots') scoped = scoped.filter((e) => e.is_bot)
-    scoped = scoped.filter((e) => eventTypeFilter.has(e.event))
+    scoped = scoped.filter((e) => eventCategoryFilter.has(EVENT_TO_KIND[e.event]!))
     return eventsToDrawPoints(scoped, mapId)
-  }, [matchId, overviewEvents, date, entityFilter, eventTypeFilter, mapId])
+  }, [matchId, overviewEvents, date, entityFilter, eventCategoryFilter, mapId])
 
   const playbackFrame = useMemo(() => {
     if (!matchId || !matchEvents) return null
@@ -81,10 +82,13 @@ export default function App() {
     if (entityFilter === 'humans') scoped = scoped.filter((e) => !e.is_bot)
     if (entityFilter === 'bots') scoped = scoped.filter((e) => e.is_bot)
     // Position/BotPosition always pass through (needed to place the dots each frame);
-    // discrete event types are gated by the eventTypeFilter checkboxes.
-    scoped = scoped.filter((e) => e.event === 'Position' || e.event === 'BotPosition' || eventTypeFilter.has(e.event))
+    // discrete event categories are gated by the eventCategoryFilter checkboxes.
+    scoped = scoped.filter((e) => {
+      const kind = EVENT_TO_KIND[e.event]
+      return !kind || eventCategoryFilter.has(kind)
+    })
     return computePlaybackFrame(scoped, mapId, currentTs)
-  }, [matchId, matchEvents, mapId, currentTs, entityFilter, eventTypeFilter])
+  }, [matchId, matchEvents, mapId, currentTs, entityFilter, eventCategoryFilter])
 
   if (indexLoading || !index) {
     return <div className="app-loading">Loading match data…</div>
@@ -98,15 +102,15 @@ export default function App() {
         date={date}
         matchId={matchId}
         entityFilter={entityFilter}
-        eventTypeFilter={eventTypeFilter}
+        eventCategoryFilter={eventCategoryFilter}
         heatmapCategory={heatmapCategory}
         onMapChange={(m) => { setMapId(m); setDate(null); setMatchId(null) }}
         onDateChange={(d) => { setDate(d); setMatchId(null) }}
         onMatchChange={setMatchId}
         onEntityFilterChange={setEntityFilter}
-        onEventTypeToggle={(e) => setEventTypeFilter((prev) => {
+        onEventCategoryToggle={(k) => setEventCategoryFilter((prev) => {
           const next = new Set(prev)
-          if (next.has(e)) next.delete(e); else next.add(e)
+          if (next.has(k)) next.delete(k); else next.add(k)
           return next
         })}
         onHeatmapCategoryChange={setHeatmapCategory}

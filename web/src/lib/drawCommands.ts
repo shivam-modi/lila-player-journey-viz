@@ -10,7 +10,7 @@ export interface DrawPoint {
   isBot: boolean
 }
 
-const EVENT_TO_KIND: Partial<Record<EventType, DrawPointKind>> = {
+export const EVENT_TO_KIND: Partial<Record<EventType, DrawPointKind>> = {
   Kill: 'kill',
   BotKill: 'kill',
   Killed: 'death',
