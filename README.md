@@ -5,7 +5,7 @@ A web tool for LILA Games' Level Design team to explore player behavior in
 break out, where people die to the storm, and which areas of the map get
 ignored — across 5 days of production telemetry and 3 maps.
 
-**Live deployment:** _TBD — filled in after deployment (Task 17)._
+**Live deployment:** https://lila-player-journey-viz.vercel.app
 
 ## What you're looking at
 
