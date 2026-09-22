@@ -1,0 +1,29 @@
+.legend {
+  display: flex;
+  gap: 16px;
+  padding: 8px 16px;
+  background: #1a1d23;
+  color: #cfd3da;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.legend > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot, .marker {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot.human { background: #50b4ff; }
+.dot.bot { background: transparent; border: 2px solid #aaaaaa; }
+.marker.kill { background: #ff4d4d; }
+.marker.death { background: #ffffff; }
+.marker.storm { background: #b060ff; }
+.marker.loot { background: #4dff88; }

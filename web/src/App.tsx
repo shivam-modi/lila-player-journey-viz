@@ -1,122 +1,139 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useMemo, useState, useEffect, useRef } from 'react'
+import { FilterPanel } from './components/FilterPanel'
+import { MapCanvas } from './components/MapCanvas'
+import { Timeline } from './components/Timeline'
+import { Legend } from './components/Legend'
+import { useMatchesIndex } from './hooks/useMatchesIndex'
+import { useMatchBundle } from './hooks/useMatchBundle'
+import { useHeatmap } from './hooks/useHeatmap'
+import { useOverviewEvents } from './hooks/useOverviewEvents'
+import { eventsToDrawPoints } from './lib/drawCommands'
+import { computePlaybackFrame } from './lib/playback'
+import type { EventType, HeatmapCategory, MapId } from './lib/types'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+const ALL_EVENT_TYPES: EventType[] = ['Kill', 'Killed', 'BotKill', 'BotKilled', 'KilledByStorm', 'Loot']
+
+export default function App() {
+  const { data: index, loading: indexLoading } = useMatchesIndex()
+  const [mapId, setMapId] = useState<MapId>('AmbroseValley')
+  const [date, setDate] = useState<string | null>(null)
+  const [matchId, setMatchId] = useState<string | null>(null)
+  const [entityFilter, setEntityFilter] = useState<'all' | 'humans' | 'bots'>('all')
+  const [eventTypeFilter, setEventTypeFilter] = useState<Set<EventType>>(new Set(ALL_EVENT_TYPES))
+  const [heatmapCategory, setHeatmapCategory] = useState<HeatmapCategory | 'off'>('kills')
+
+  const { data: heatmap } = useHeatmap(matchId ? null : mapId)
+  const { data: matchEvents } = useMatchBundle(matchId)
+  const { data: overviewEvents } = useOverviewEvents(mapId)
+
+  const [currentTs, setCurrentTs] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [speed, setSpeed] = useState(1)
+  const rafRef = useRef<number | null>(null)
+  const lastFrameTimeRef = useRef<number | null>(null)
+
+  const durationMs = useMemo(() => {
+    if (!matchId || !index) return 0
+    return index.find((m) => m.match_id === matchId)?.duration_ms ?? 0
+  }, [matchId, index])
+
+  useEffect(() => {
+    setCurrentTs(0)
+    setPlaying(false)
+  }, [matchId])
+
+  useEffect(() => {
+    if (!playing) {
+      lastFrameTimeRef.current = null
+      return
+    }
+    const tick = (now: number) => {
+      if (lastFrameTimeRef.current != null) {
+        const delta = (now - lastFrameTimeRef.current) * speed
+        setCurrentTs((t) => Math.min(durationMs, t + delta))
+      }
+      lastFrameTimeRef.current = now
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [playing, speed, durationMs])
+
+  useEffect(() => {
+    if (currentTs >= durationMs && durationMs > 0) setPlaying(false)
+  }, [currentTs, durationMs])
+
+  const overviewPoints = useMemo(() => {
+    if (matchId || !overviewEvents) return []
+    let scoped = overviewEvents.filter((e) => (date ? e.date === date : true))
+    if (entityFilter === 'humans') scoped = scoped.filter((e) => !e.is_bot)
+    if (entityFilter === 'bots') scoped = scoped.filter((e) => e.is_bot)
+    scoped = scoped.filter((e) => eventTypeFilter.has(e.event))
+    return eventsToDrawPoints(scoped, mapId)
+  }, [matchId, overviewEvents, date, entityFilter, eventTypeFilter, mapId])
+
+  const playbackFrame = useMemo(() => {
+    if (!matchId || !matchEvents) return null
+    let scoped = matchEvents
+    if (entityFilter === 'humans') scoped = scoped.filter((e) => !e.is_bot)
+    if (entityFilter === 'bots') scoped = scoped.filter((e) => e.is_bot)
+    // Position/BotPosition always pass through (needed to place the dots each frame);
+    // discrete event types are gated by the eventTypeFilter checkboxes.
+    scoped = scoped.filter((e) => e.event === 'Position' || e.event === 'BotPosition' || eventTypeFilter.has(e.event))
+    return computePlaybackFrame(scoped, mapId, currentTs)
+  }, [matchId, matchEvents, mapId, currentTs, entityFilter, eventTypeFilter])
+
+  if (indexLoading || !index) {
+    return <div className="app-loading">Loading match data…</div>
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app">
+      <FilterPanel
+        index={index}
+        mapId={mapId}
+        date={date}
+        matchId={matchId}
+        entityFilter={entityFilter}
+        eventTypeFilter={eventTypeFilter}
+        heatmapCategory={heatmapCategory}
+        onMapChange={(m) => { setMapId(m); setDate(null); setMatchId(null) }}
+        onDateChange={(d) => { setDate(d); setMatchId(null) }}
+        onMatchChange={setMatchId}
+        onEntityFilterChange={setEntityFilter}
+        onEventTypeToggle={(e) => setEventTypeFilter((prev) => {
+          const next = new Set(prev)
+          if (next.has(e)) next.delete(e); else next.add(e)
+          return next
+        })}
+        onHeatmapCategoryChange={setHeatmapCategory}
+      />
+      <main className="app-main">
+        <Legend />
+        <div className="app-canvas-area">
+          <MapCanvas
+            mapId={mapId}
+            heatmap={heatmap}
+            heatmapCategory={matchId ? 'off' : heatmapCategory}
+            overviewPoints={matchId ? undefined : overviewPoints}
+            playbackFrame={playbackFrame}
+          />
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        {matchId && (
+          <Timeline
+            durationMs={durationMs}
+            currentTs={currentTs}
+            playing={playing}
+            speed={speed}
+            onSeek={setCurrentTs}
+            onTogglePlay={() => setPlaying((p) => !p)}
+            onSpeedChange={setSpeed}
+          />
+        )}
+      </main>
+    </div>
   )
 }
-
-export default App
