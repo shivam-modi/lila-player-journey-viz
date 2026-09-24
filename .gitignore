@@ -9,3 +9,6 @@ web/dist/
 
 # OS
 .DS_Store
+
+# Personal notes, not part of the submission
+EXPLANATION.md
